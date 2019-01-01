@@ -104,7 +104,7 @@ class CelebA(Dataset):
         self.transform = transforms.Compose(transforms_)
         self.unaligned = unaligned
         self.files = sorted(glob.glob(os.path.join(root, 'img_align_celeba') + '/*.*'))
-        attribute_file = os.path.join(root, 'list_attr_celeba.csv')
+        attribute_file = os.path.join(root, 'list_attr_celeba.txt')
         image_path = os.path.join(root, 'img_align_celeba')
 
 
@@ -113,8 +113,8 @@ class CelebA(Dataset):
         self.files_B = []
 
         with open(attribute_file, "r") as f:
-            reader = csv.reader(f, delimiter=",")
-            #num_files = next(reader, None)
+            reader = csv.reader(f, delimiter=" ")
+            num_files = next(reader, None)
             attribute_list = next(reader, None)
             attribute_list = [x.lower() for x in attribute_list]
             attribute = attribute.lower()
@@ -128,7 +128,7 @@ class CelebA(Dataset):
                     else:
                         self.files_B.append(os.path.join(image_path,row[0]))
             else:
-                raise AttributeError("Attribute {} not in attribute list ".format(attribute))
+                raise AttributeError("Attribute {} not in attribute list: {}".format(attribute, attribute_list))
         
     def __getitem__(self, index):
         #import pdb; pdb.set_trace()

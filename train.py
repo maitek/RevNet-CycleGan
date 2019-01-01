@@ -13,7 +13,7 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
-from modules import RevNetGenerator, Discriminator
+from modules import RevUNetGenerator, Discriminator
 from utils import weights_init_normal, tensor2image
 from datasets import ImageDataset, CelebA
 from time import time
@@ -23,7 +23,7 @@ from utils import Logger, ReplayBuffer
 # Networks
 input_nc = 3
 
-netG = RevNetGenerator(input_nc)#.double()
+netG = RevUNetGenerator(input_nc)#.double()
 netD = Discriminator(input_nc)
 
 resume = False
@@ -46,9 +46,6 @@ if cuda:
 criterion_GAN = torch.nn.MSELoss()
 criterion_cycle = torch.nn.L1Loss()
 criterion_identity = torch.nn.L1Loss()
-
-#lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-#lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer_D, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 
 # Inputs & targets memory allocation
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
@@ -88,7 +85,7 @@ for epoch in range(0, n_epochs):
                             transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 
             #dataset = ImageDataset(opt.dataroot, transforms_=transforms_, unaligned=True)
-            dataset = CelebA("/Users/sundholm/Data/celeba", transforms_=transforms_, unaligned=True, attribute = "Blond_Hair")
+            dataset = CelebA("/home/msu/Data/celeba", transforms_=transforms_, unaligned=True, attribute = "Blond_Hair")
 
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
                                     num_workers=n_cpu,drop_last=True)

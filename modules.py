@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from unet import UNet
 
 image_shape = (64,64,3)
 in_channels = 3
@@ -117,6 +118,8 @@ class RevNetBlock(nn.Module):
         x1 = y1 - self.F(x2)
         return torch.cat((x1, x2), dim=1)
 
+
+
 class RevNetGenerator(nn.Module):
     def __init__(self, image_shape):
         super().__init__()
@@ -188,9 +191,67 @@ class Discriminator(nn.Module):
         # Average pooling and flatten
         return torch.squeeze(F.avg_pool2d(x, x.size()[2:]))
 
+class RevUnet(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        assert in_channels % 2 == 0
+        self.F = UNet(in_channels // 2, in_channels // 2)
+        self.G = UNet(in_channels // 2, in_channels // 2)
+        
+        #self.F = nn.Conv2d(in_channels // 2, in_channels // 2,kernel_size=3,padding=1)
+        #self.G = nn.Conv2d(in_channels // 2, in_channels // 2,kernel_size=3,padding=1)
+
+    def forward(self,in_tensor,reverse=False):
+        # split
+        c = in_tensor.shape[1]
+        assert c % 2 == 0
+        in1, in2 = in_tensor[:, :c // 2, ...], in_tensor[:, c // 2:, ...]
+        
+        if not reverse:
+            out = self.encode(in1,in2)
+        else:
+            out = self.decode(in1,in2)
+        return out
+
+    def encode(self,x1,x2):
+        #import pdb; pdb.set_trace()
+        y1 = self.F(x2) + x1
+        y2 = self.G(y1) + x2
+        return torch.cat((y1, y2), dim=1)
+
+    def decode(self,y1,y2):
+        x2 = y2 - self.G(y1)
+        x1 = y1 - self.F(x2)
+        return torch.cat((x1, x2), dim=1)
+
+class RevUNetGenerator(nn.Module):
+    def __init__(self, image_shape):
+        super().__init__()
+
+        
+        layers = [
+            # encoder
+            SqueezeLayer(2),
+            RevUnet(in_channels*4),
+            UnsqueezeLayer(2)
+        ]
+        self.layers = nn.ModuleList(layers)
+        
+    def forward(self,x, reverse=False):
+        #print(x.shape)
+        if not reverse:
+            for layer in self.layers:
+                x = layer(x)
+                #print(x.shape)
+        else:
+            for layer in reversed(self.layers):
+                x = layer(x,reverse=True)
+                #print(x.shape)
+        return x
+
 if __name__ == "__main__":
     in_channels = 3
-    revnet = RevNetGenerator(in_channels).double()
+    revnet = RevUNetGenerator(in_channels)#.double()
     #flow_enc = FlowStep(in_channels, hidden_channels,
     #                 actnorm_scale=1.0,
     #                 flow_permutation="invconv",
@@ -203,7 +264,7 @@ if __name__ == "__main__":
     #                 flow_coupling="additive",
     #                 LU_decomposed=False)
 
-    A = torch.randn((1,3,64,64),dtype=torch.float64)
+    A = torch.randn((1,in_channels,64,64),dtype=torch.float32)
     #import pdb; pdb.set_trace()
     print(A.shape)
     z = revnet(A)
