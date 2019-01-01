@@ -53,18 +53,18 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 ###################################
 # currently must be a factor of 16
 # epoch, size, batch_size
-current_scale = 32
+current_scale = 64
 max_scale = 128
 max_scale_batch_size = 4
 epochs_per_scale = 10
 n_epochs = 100
-iterations_per_epoch = 10
+iterations_per_epoch = 100
 n_cpu = 4
 
 # Loss plot
 logger = Logger(n_epochs, iterations_per_epoch)
 
-lr = 5e-3
+lr = 3e-4
 ii = 0
 ###### Training ######
 for epoch in range(0, n_epochs):

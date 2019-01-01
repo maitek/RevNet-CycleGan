@@ -225,29 +225,41 @@ class RevUnet(nn.Module):
         return torch.cat((x1, x2), dim=1)
 
 class RevUNetGenerator(nn.Module):
-    def __init__(self, image_shape):
+    def __init__(self, in_channels):
         super().__init__()
 
         
         layers = [
             # encoder
-            SqueezeLayer(2),
-            RevUnet(in_channels*4),
-            UnsqueezeLayer(2)
+            #SqueezeLayer(2),
+            RevUnet(in_channels*2),
+            #UnsqueezeLayer(2),
         ]
         self.layers = nn.ModuleList(layers)
         
     def forward(self,x, reverse=False):
         #print(x.shape)
+        #import pdb; pdb.set_trace()
+        if torch.cuda.is_available():
+            z = torch.randn(x.shape).cuda() # todo, generate on gpu
+        else:
+            z = torch.randn(x.shape)
+            
+        
+        
+        
         if not reverse:
+            x = torch.cat((z,x), dim=1)
             for layer in self.layers:
                 x = layer(x)
-                #print(x.shape)
+                #import pdb; pdb.set_trace()
+            return F.tanh(x[:,3:6,:,:])
         else:
+            x = torch.cat((x,z), dim=1)
             for layer in reversed(self.layers):
                 x = layer(x,reverse=True)
                 #print(x.shape)
-        return x
+            return F.tanh(x[:,0:3,:,:])
 
 if __name__ == "__main__":
     in_channels = 3
