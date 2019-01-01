@@ -104,8 +104,8 @@ for epoch in range(0, n_epochs):
             fake_A_buffer = ReplayBuffer()
             fake_B_buffer = ReplayBuffer()
 
-            optimizer_G = torch.optim.Adam(netG.parameters(), lr=lr, betas=(0.5, 0.999))
-            optimizer_D = torch.optim.Adam(netD.parameters(), lr=lr, betas=(0.5, 0.999))
+            optimizer_G = torch.optim.Adam(netG.parameters(), lr=lr, betas=(0.5, 0.999), amsgrad=True)
+            optimizer_D = torch.optim.Adam(netD.parameters(), lr=lr, betas=(0.5, 0.999), amsgrad=True)
             lr /= 2
             current_scale += 16
     
@@ -147,7 +147,7 @@ for epoch in range(0, n_epochs):
         loss_cycle_BAB = criterion_cycle(recovered_B, real_B)*10.0
 
         # Total loss
-        loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A # + loss_cycle_ABA + loss_cycle_BAB
+        loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
         loss_G.backward()
 
         optimizer_G.step()
