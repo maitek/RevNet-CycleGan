@@ -107,3 +107,6 @@ output/B/
 
 # model checkpoints
 *.pth
+
+# for mac
+.DS_Store
