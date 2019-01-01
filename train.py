@@ -56,7 +56,7 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 current_scale = 64
 max_scale = 128
 max_scale_batch_size = 4
-epochs_per_scale = 10
+epochs_per_scale = 20
 n_epochs = 100
 iterations_per_epoch = 100
 n_cpu = 4
@@ -123,31 +123,31 @@ for epoch in range(0, n_epochs):
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
 
-        same_B = netG(real_B)
-        loss_identity_B = criterion_identity(same_B, real_B)*5.0
+        same_B, _ = netG(real_B)
+        loss_identity_B = criterion_identity(F.tanh(same_B), real_B)*5.0
 
         # G_B2A(A) should equal A if real A is fed
-        same_A = netG(real_A, reverse=True)
-        loss_identity_A = criterion_identity(same_A, real_A)*5.0
+        same_A, _ = netG(real_A, reverse=True)
+        loss_identity_A = criterion_identity(F.tanh(same_A), real_A)*5.0
 
         # GAN loss
-        fake_B = netG(real_A)
-        pred_fake_B = netD(fake_B)
+        fake_B, zB = netG(real_A)
+        pred_fake_B = netD(F.tanh(fake_B))
         loss_GAN_A2B = criterion_GAN(pred_fake_B, target_B_real)
 
-        fake_A = netG(real_B, reverse=True)
-        pred_fake_A = netD(fake_A)
+        fake_A, zA = netG(real_B, reverse=True)
+        pred_fake_A = netD(F.tanh(fake_A))
         loss_GAN_B2A = criterion_GAN(pred_fake_A, target_A_real)
 
         # Cycle loss
-        #recovered_A = netG(fake_B, reverse=True)
-        #loss_cycle_ABA = criterion_cycle(recovered_A, real_A)*10.0
-
-        #recovered_B = netG_A2B(fake_A)
-        #loss_cycle_BAB = criterion_cycle(recovered_B, real_B)*10.0
+        recovered_A, zA = netG(fake_B, zB, reverse=True)
+        loss_cycle_ABA = criterion_cycle(recovered_A, real_A)*10.0
+        
+        recovered_B, zB = netG(fake_A, zA)
+        loss_cycle_BAB = criterion_cycle(recovered_B, real_B)*10.0
 
         # Total loss
-        loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A  # + loss_cycle_ABA + loss_cycle_BAB
+        loss_G = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A # + loss_cycle_ABA + loss_cycle_BAB
         loss_G.backward()
 
         optimizer_G.step()
@@ -160,21 +160,21 @@ for epoch in range(0, n_epochs):
 
         # Real loss
         pred_real_A = netD(real_A)
-        loss_D_real_A = criterion_GAN(pred_real_A, target_A_real)
+        loss_D_real_A = criterion_GAN(F.tanh(pred_real_A), target_A_real)
 
         # Fake loss
         fake_A = fake_A_buffer.push_and_pop(fake_A)
         pred_fake_A = netD(fake_A.detach())
-        loss_D_fake_A = criterion_GAN(pred_fake_A, target_A_fake)
+        loss_D_fake_A = criterion_GAN(F.tanh(pred_fake_A), target_A_fake)
 
         # Real loss
         pred_real_B = netD(real_B)
-        loss_D_real_B = criterion_GAN(pred_real_B, target_B_real)
+        loss_D_real_B = criterion_GAN(F.tanh(pred_real_B), target_B_real)
 
         # Fake loss
         fake_B = fake_B_buffer.push_and_pop(fake_B)
         pred_fake_B = netD(fake_B.detach())
-        loss_D_fake_B = criterion_GAN(pred_fake_B, target_B_fake)
+        loss_D_fake_B = criterion_GAN(F.tanh(pred_fake_B), target_B_fake)
 
         # Total loss
         loss_D = (loss_D_real_A + loss_D_fake_A + loss_D_real_B + loss_D_fake_B)*0.25
@@ -185,7 +185,7 @@ for epoch in range(0, n_epochs):
         ###################################
         print("time", time() - tic)
         # Progress report (http://localhost:8097)
-        logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A), 'loss_D': loss_D},
+        logger.log({'loss_G': loss_G, 'loss_G_identity': (loss_identity_A + loss_identity_B), 'loss_cycle_GAN': (loss_cycle_ABA + loss_cycle_BAB), 'loss_G_GAN': (loss_GAN_A2B + loss_GAN_B2A), 'loss_D': loss_D},
                     images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A, 'fake_B': fake_B})
 
         if i > iterations_per_epoch:
@@ -196,8 +196,8 @@ for epoch in range(0, n_epochs):
             #import pdb; pdb.set_trace()
             plt.imsave("log/epoch_{}_A_real.png".format(epoch), np.moveaxis(tensor2image(real_A.data),0,2))
             plt.imsave("log/epoch_{}_B_real.png".format(epoch), np.moveaxis(tensor2image(real_B.data),0,2))
-            plt.imsave("log/epoch_{}_A_fake.png".format(epoch), np.moveaxis(tensor2image(fake_A.data),0,2))
-            plt.imsave("log/epoch_{}_B_fake.png".format(epoch), np.moveaxis(tensor2image(fake_B.data),0,2))
+            plt.imsave("log/epoch_{}_A_fake.png".format(epoch), np.moveaxis(tensor2image(F.tanh(fake_A).data),0,2))
+            plt.imsave("log/epoch_{}_B_fake.png".format(epoch), np.moveaxis(tensor2image(F.tanh(fake_B).data),0,2))
             break
 
 

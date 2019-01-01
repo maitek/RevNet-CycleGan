@@ -232,34 +232,37 @@ class RevUNetGenerator(nn.Module):
         layers = [
             # encoder
             #SqueezeLayer(2),
-            RevUnet(in_channels*2),
+            RevUnet(in_channels+1),
             #UnsqueezeLayer(2),
         ]
         self.layers = nn.ModuleList(layers)
         
-    def forward(self,x, reverse=False):
+    def forward(self, x, z=None, reverse=False):
         #print(x.shape)
-        #import pdb; pdb.set_trace()
-        if torch.cuda.is_available():
-            z = torch.randn(x.shape).cuda() # todo, generate on gpu
-        else:
-            z = torch.randn(x.shape)
-            
         
+        if z is None:
+            b, c, w, h = x.shape
+            if torch.cuda.is_available():
+                z = torch.cuda.FloatTensor(b, 1, w, h).normal_()
+            else:
+                z = torch.randn((b, 1, w, h))
         
-        
+        x = torch.cat((x,z), dim=1)        
         if not reverse:
-            x = torch.cat((z,x), dim=1)
             for layer in self.layers:
                 x = layer(x)
                 #import pdb; pdb.set_trace()
-            return F.tanh(x[:,3:6,:,:])
+            #return F.tanh(x[:,3:6,:,:])
         else:
-            x = torch.cat((x,z), dim=1)
+            #x = torch.cat((x,x), dim=1)
             for layer in reversed(self.layers):
                 x = layer(x,reverse=True)
                 #print(x.shape)
-            return F.tanh(x[:,0:3,:,:])
+            #return F.tanh(x[:,0:3,:,:])
+        
+        out = x[:,0:3,:,:]
+        z = x[:,3:4,:,:]
+        return out, z
 
 if __name__ == "__main__":
     in_channels = 3
@@ -276,15 +279,15 @@ if __name__ == "__main__":
     #                 flow_coupling="additive",
     #                 LU_decomposed=False)
 
-    A = torch.randn((1,in_channels,64,64),dtype=torch.float32)
+    A = F.tanh(torch.randn((1,in_channels,64,64),dtype=torch.float32))
     #import pdb; pdb.set_trace()
     print(A.shape)
-    z = revnet(A)
-    print(z.shape)
-    B = revnet(z,reverse=True)
+    B, z = revnet(A)
+    print(B.shape, z.shape)
+    Ac, z = revnet(B,z,reverse=True)
     print(B.shape)
 
     #A_r = flow_net(B)
 
-    print(torch.abs(B-A).sum())
+    print(torch.abs(Ac-A).sum())
     import pdb; pdb.set_trace()
